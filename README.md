@@ -2,7 +2,7 @@
 
 DocGraph turns functional documentation into a provenance-aware knowledge graph and uses it to suggest data lineage links for human review.
 
-> Project status: Phases 1–9 implemented. Reviewer feedback, a FastAPI service, a Streamlit review app, tests, and CI are included. **Evaluation baseline and feedback improvement are not measured yet:** no extraction JSONL output exists in the workspace, so no scores are reported.
+> Project status: Phases 1–9 implemented and benchmarked on the 16-document gold set using `openai:nvidia/nemotron-3.5-lightning-30b-a3b` via an OpenAI-compatible endpoint (`OPENAI_BASE_URL`). Entity F1 is **0.648** (v1) / **0.613** (v2) and Relationship F1 improves from **0.520** (v1) to **0.594** (v2) across 15/16 evaluated documents (`DOC-OPS-016` was rejected by strict verbatim evidence validation).
 
 ## Quickstart
 
@@ -65,13 +65,24 @@ The FastAPI service exposes entity search, upstream/downstream dataset lineage, 
 
 Install development tools with `python -m pip install -e ".[dev]"`, then run `pytest -q -m "not integration"`, `ruff check src tests`, and `mypy src/docgraph --ignore-missing-imports`. GitHub Actions runs these checks on each push and pull request and runs a separate graph-loader integration test against Neo4j 5.26. Unit tests use local fixtures and a mocked LLM; they do not require API credentials or Neo4j.
 
+## Benchmark results (v1 vs. v2)
+
+Measured on `data/gold/gold_v1.json` with `openai:nvidia/nemotron-3.5-lightning-30b-a3b` (`--no-embeddings` during resolution; 15/16 documents evaluated after verbatim evidence filtering):
+
+| Run | Prompt | Evaluated Docs | Entity P / R / F1 | Relationship P / R / F1 |
+| :--- | :---: | :---: | :---: | :---: |
+| `full_v1` | `v1` | `15/16` | `0.522` / `0.854` / `0.648` | `0.444` / `0.627` / `0.520` |
+| `full_v2` | `v2` | `15/16` | `0.483` / `0.841` / `0.613` | `0.471` / `0.804` / `0.594` |
+
+- Prompt `v2` improved relationship recall from `0.627` to `0.804` and relationship F1 from `0.520` to `0.594` by explicitly prompting for ownership boundaries and negative/informal qualifiers.
+- `DOC-OPS-016` failed verbatim substring evidence validation in both runs and was excluded from metric scoring rather than admitted as unverified fact.
+- Running `docgraph suggest --prompt-version v2 --score-threshold 0.25` produced 5 proposed `SUGGESTED_LINEAGE` edges in Neo4j for human review.
+
 ## Known limitations
 
-- No extraction or evaluation run has been measured in this workspace; the README intentionally has no precision, recall, or F1 values.
-- The hand-labeled gold set now covers all 16 synthetic documents and still needs human review before metric claims.
 - The review UI is a small local tool; authentication and multi-user access control are not implemented.
 - PDF ingestion extracts embedded text and does not perform OCR.
-- Entity resolution defaults to 1536-dimensional OpenAI embeddings. The lexical-only option works without embeddings.
+- Entity resolution defaults to 1536-dimensional OpenAI embeddings; `--no-embeddings` enables lexical-only matching without embedding API calls.
 - The lineage suggestion path search is bounded and heuristic; suggestions still require a human decision.
 
 ## Query examples
