@@ -1,0 +1,20 @@
+repos:
+  - repo: https://github.com/astral-sh/ruff-pre-commit
+    rev: v0.8.4
+    hooks:
+      - id: ruff
+        args: [--fix]
+      - id: ruff-format
+  - repo: local
+    hooks:
+      - id: mypy
+        name: mypy
+        entry: mypy src/docgraph --ignore-missing-imports
+        language: system
+        pass_filenames: false
+      - id: pytest
+        name: pytest unit tests
+        entry: pytest -q -m "not integration"
+        language: system
+        pass_filenames: false
+        always_run: true

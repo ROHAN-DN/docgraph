@@ -1,0 +1,52 @@
+services:
+  neo4j:
+    image: neo4j:5.26-community
+    container_name: docgraph-neo4j
+    ports:
+      - "7474:7474"
+      - "7687:7687"
+    environment:
+      NEO4J_AUTH: ${NEO4J_USER:-neo4j}/${NEO4J_PASSWORD:-docgraph-local-password}
+      NEO4J_server_memory_heap_initial__size: 512m
+      NEO4J_server_memory_heap_max__size: 1G
+    volumes:
+      - neo4j_data:/data
+    healthcheck:
+      test: ["CMD-SHELL", "cypher-shell -u $${NEO4J_AUTH%%/*} -p $${NEO4J_AUTH#*/} 'RETURN 1' || exit 1"]
+      interval: 10s
+      timeout: 5s
+      retries: 10
+
+  app:
+    build: .
+    command: ["uvicorn", "docgraph.api:app", "--host", "0.0.0.0", "--port", "8000"]
+    env_file: .env
+    environment:
+      NEO4J_URI: bolt://neo4j:7687
+      FEEDBACK_DATABASE_PATH: /app/.docgraph/feedback.sqlite3
+    ports:
+      - "8000:8000"
+    depends_on:
+      neo4j:
+        condition: service_healthy
+    volumes:
+      - feedback_data:/app/.docgraph
+
+  ui:
+    build: .
+    command: ["streamlit", "run", "src/docgraph/streamlit_app.py", "--server.address", "0.0.0.0", "--server.port", "8501", "--server.headless", "true"]
+    env_file: .env
+    environment:
+      NEO4J_URI: bolt://neo4j:7687
+      FEEDBACK_DATABASE_PATH: /app/.docgraph/feedback.sqlite3
+    ports:
+      - "8501:8501"
+    depends_on:
+      neo4j:
+        condition: service_healthy
+    volumes:
+      - feedback_data:/app/.docgraph
+
+volumes:
+  neo4j_data:
+  feedback_data:

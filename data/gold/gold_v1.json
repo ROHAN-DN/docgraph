@@ -1,0 +1,259 @@
+{
+  "schema_version": "1.0",
+  "description": "Hand-authored expected facts for five synthetic source documents; evidence is a verbatim substring of the source document.",
+  "documents": [
+    {
+      "document_id": "DOC-PAY-001",
+      "entities": [
+        {"id": "northstar", "type": "Application", "name": "Northstar", "evidence": "Northstar is the bank's domestic payment orchestration service."},
+        {"id": "branch-portal", "type": "Application", "name": "Branch Portal", "evidence": "The service accepts instructions from the Branch Portal and Mobile Banking"},
+        {"id": "mobile-banking", "type": "Application", "name": "Mobile Banking", "evidence": "The service accepts instructions from the Branch Portal and Mobile Banking"},
+        {"id": "clearrail-gateway", "type": "Application", "name": "ClearRail gateway", "evidence": "routes eligible payments to the ClearRail gateway."},
+        {"id": "payment-order", "type": "Dataset", "name": "PAYMENT_CORE.PAYMENT_ORDER", "evidence": "The platform records each accepted instruction in `PAYMENT_CORE.PAYMENT_ORDER`"},
+        {"id": "settlement-event", "type": "Dataset", "name": "PAYMENT_STAGE.SETTLEMENT_EVENT", "evidence": "writes settlement rows to `PAYMENT_STAGE.SETTLEMENT_EVENT`."},
+        {"id": "settlement-export", "type": "Job", "name": "PAYMENT_SETTLEMENT_EXPORT", "evidence": "The hourly `PAYMENT_SETTLEMENT_EXPORT` process"},
+        {"id": "payments-engineering", "type": "Team", "name": "Payments Engineering", "evidence": "Payments Engineering owns the orchestration service and its schedules."},
+        {"id": "settled-payment", "type": "BusinessTerm", "name": "settled payment", "evidence": "a *settled payment* is an accepted instruction for which the rail has returned a final settlement code."}
+      ],
+      "relationships": [
+        {"source": "settlement-export", "type": "READS_FROM", "target": "payment-order", "evidence": "reads `PAYMENT_CORE.PAYMENT_ORDER`"},
+        {"source": "settlement-export", "type": "WRITES_TO", "target": "settlement-event", "evidence": "writes settlement rows to `PAYMENT_STAGE.SETTLEMENT_EVENT`."},
+        {"source": "northstar", "type": "OWNED_BY", "target": "payments-engineering", "evidence": "Payments Engineering owns the orchestration service and its schedules."}
+      ]
+    },
+    {
+      "document_id": "DOC-CUST-002",
+      "entities": [
+        {"id": "cim", "type": "Application", "name": "Customer Identity Management", "aliases": ["CIM", "PartyHub"], "evidence": "Customer Identity Management (CIM), also called PartyHub by the integration team, maintains the mastered party record."},
+        {"id": "cim-party", "type": "Dataset", "name": "CIM.PARTY", "evidence": "The `CIM.PARTY` table contains `party_id`, `legal_name`, `birth_date`, and `party_status`."},
+        {"id": "party-id", "type": "Field", "name": "party_id", "evidence": "The `CIM.PARTY` table contains `party_id`, `legal_name`, `birth_date`, and `party_status`."},
+        {"id": "account-party", "type": "Dataset", "name": "CIM.ACCOUNT_PARTY", "evidence": "The `CIM.ACCOUNT_PARTY` table links `account_id` to `party_id`"},
+        {"id": "customer-party", "type": "Dataset", "name": "LANDING.CUSTOMER_PARTY", "evidence": "writes the active party extract to `LANDING.CUSTOMER_PARTY`."},
+        {"id": "party-publish", "type": "Job", "name": "CIM_PARTY_PUBLISH", "evidence": "The nightly `CIM_PARTY_PUBLISH` job"},
+        {"id": "customer-platforms", "type": "Team", "name": "Customer Platforms", "evidence": "Customer Platforms owns CIM."}
+      ],
+      "relationships": [
+        {"source": "party-publish", "type": "READS_FROM", "target": "cim-party", "evidence": "reads `CIM.PARTY`"},
+        {"source": "party-publish", "type": "WRITES_TO", "target": "customer-party", "evidence": "writes the active party extract to `LANDING.CUSTOMER_PARTY`."},
+        {"source": "cim", "type": "OWNED_BY", "target": "customer-platforms", "evidence": "Customer Platforms owns CIM."}
+      ]
+    },
+    {
+      "document_id": "DOC-RISK-004",
+      "entities": [
+        {"id": "payment-event", "type": "Dataset", "name": "RISK_LANDING.PAYMENT_EVENT", "evidence": "The `RISK_LANDING.PAYMENT_EVENT` dataset receives rows from `PAYMENT_STAGE.SETTLEMENT_EVENT`"},
+        {"id": "settlement-event", "type": "Dataset", "name": "PAYMENT_STAGE.SETTLEMENT_EVENT", "evidence": "from `PAYMENT_STAGE.SETTLEMENT_EVENT`; the hourly `PAYMENT_EVENT_INGEST` process"},
+        {"id": "event-ingest", "type": "Job", "name": "PAYMENT_EVENT_INGEST", "evidence": "the hourly `PAYMENT_EVENT_INGEST` process"},
+        {"id": "customer-party", "type": "Dataset", "name": "LANDING.CUSTOMER_PARTY", "evidence": "joins `RISK_LANDING.PAYMENT_EVENT` to `LANDING.CUSTOMER_PARTY`"},
+        {"id": "payment-fact", "type": "Dataset", "name": "RISK_CURATED.PAYMENT_FACT", "evidence": "writes `RISK_CURATED.PAYMENT_FACT`."},
+        {"id": "payment-enrich", "type": "Job", "name": "RISK_PAYMENT_ENRICH", "evidence": "The daily `RISK_PAYMENT_ENRICH` process"},
+        {"id": "enterprise-data-platform", "type": "Team", "name": "Enterprise Data Platform", "evidence": "Enterprise Data Platform owns the lake jobs and curated datasets."}
+      ],
+      "relationships": [
+        {"source": "event-ingest", "type": "READS_FROM", "target": "settlement-event", "evidence": "reads the staging table"},
+        {"source": "event-ingest", "type": "WRITES_TO", "target": "payment-event", "evidence": "writes the landing dataset."},
+        {"source": "payment-enrich", "type": "READS_FROM", "target": "payment-event", "evidence": "joins `RISK_LANDING.PAYMENT_EVENT` to `LANDING.CUSTOMER_PARTY`"},
+        {"source": "payment-enrich", "type": "READS_FROM", "target": "customer-party", "evidence": "joins `RISK_LANDING.PAYMENT_EVENT` to `LANDING.CUSTOMER_PARTY`"},
+        {"source": "payment-enrich", "type": "WRITES_TO", "target": "payment-fact", "evidence": "writes `RISK_CURATED.PAYMENT_FACT`."}
+      ]
+    },
+    {
+      "document_id": "DOC-REPORT-005",
+      "entities": [
+        {"id": "liquidity-report", "type": "Report", "name": "Daily Liquidity Position report", "evidence": "The Daily Liquidity Position report is published to the Treasury workspace at 07:30 on business days."},
+        {"id": "payment-fact", "type": "Dataset", "name": "RISK_CURATED.PAYMENT_FACT", "evidence": "It reads `RISK_CURATED.PAYMENT_FACT` and `TREASURY.CASH_BALANCE_SNAPSHOT`."},
+        {"id": "cash-snapshot", "type": "Dataset", "name": "TREASURY.CASH_BALANCE_SNAPSHOT", "evidence": "It reads `RISK_CURATED.PAYMENT_FACT` and `TREASURY.CASH_BALANCE_SNAPSHOT`."},
+        {"id": "liquidity-refresh", "type": "Job", "name": "LIQUIDITY_DAILY_REFRESH", "evidence": "The report is produced by the `LIQUIDITY_DAILY_REFRESH` process"},
+        {"id": "risk-enrich", "type": "Job", "name": "RISK_PAYMENT_ENRICH", "evidence": "depends on completion of `RISK_PAYMENT_ENRICH` and `CASH_SNAPSHOT_LOAD`."},
+        {"id": "cash-snapshot-load", "type": "Job", "name": "CASH_SNAPSHOT_LOAD", "evidence": "depends on completion of `RISK_PAYMENT_ENRICH` and `CASH_SNAPSHOT_LOAD`."},
+        {"id": "treasury-analytics", "type": "Team", "name": "Treasury Analytics", "evidence": "Treasury Analytics owns the report definition"}
+      ],
+      "relationships": [
+        {"source": "liquidity-report", "type": "READS_FROM", "target": "payment-fact", "evidence": "It reads `RISK_CURATED.PAYMENT_FACT` and `TREASURY.CASH_BALANCE_SNAPSHOT`."},
+        {"source": "liquidity-report", "type": "READS_FROM", "target": "cash-snapshot", "evidence": "It reads `RISK_CURATED.PAYMENT_FACT` and `TREASURY.CASH_BALANCE_SNAPSHOT`."},
+        {"source": "liquidity-refresh", "type": "DEPENDS_ON", "target": "risk-enrich", "evidence": "depends on completion of `RISK_PAYMENT_ENRICH` and `CASH_SNAPSHOT_LOAD`."},
+        {"source": "liquidity-refresh", "type": "DEPENDS_ON", "target": "cash-snapshot-load", "evidence": "depends on completion of `RISK_PAYMENT_ENRICH` and `CASH_SNAPSHOT_LOAD`."},
+        {"source": "liquidity-report", "type": "OWNED_BY", "target": "treasury-analytics", "evidence": "Treasury Analytics owns the report definition"}
+      ]
+    },
+    {
+      "document_id": "DOC-GL-007",
+      "entities": [
+        {"id": "payment-posting", "type": "Dataset", "name": "GL.PAYMENT_POSTING", "evidence": "The `GL.PAYMENT_POSTING` table stores posted payment accounting entries."},
+        {"id": "settlement-event", "type": "Dataset", "name": "PAYMENT_STAGE.SETTLEMENT_EVENT", "evidence": "reads `PAYMENT_STAGE.SETTLEMENT_EVENT` and writes `GL.PAYMENT_POSTING`"},
+        {"id": "gl-payment-post", "type": "Job", "name": "GL_PAYMENT_POST", "evidence": "The `GL_PAYMENT_POST` job"},
+        {"id": "currency-rule", "type": "Dataset", "name": "FINANCE.CURRENCY_RULE", "evidence": "currency mapping from `FINANCE.CURRENCY_RULE`."},
+        {"id": "finance-platforms", "type": "Team", "name": "Finance Platforms", "evidence": "Finance Platforms owns the posting job and table."}
+      ],
+      "relationships": [
+        {"source": "gl-payment-post", "type": "READS_FROM", "target": "settlement-event", "evidence": "reads `PAYMENT_STAGE.SETTLEMENT_EVENT`"},
+        {"source": "gl-payment-post", "type": "READS_FROM", "target": "currency-rule", "evidence": "currency mapping from `FINANCE.CURRENCY_RULE`."},
+        {"source": "gl-payment-post", "type": "WRITES_TO", "target": "payment-posting", "evidence": "writes `GL.PAYMENT_POSTING`"},
+        {"source": "payment-posting", "type": "OWNED_BY", "target": "finance-platforms", "evidence": "Finance Platforms owns the posting job and table."}
+      ]
+    },
+    {
+      "document_id": "DOC-PAY-003",
+      "entities": [
+        {"id": "clearrail-adapter", "type": "Application", "name": "ClearRail Gateway Adapter", "aliases": ["CRG", "ClearRail Connector"], "evidence": "The ClearRail Gateway Adapter (CRG) receives normalized requests from Northstar and sends them to the external domestic rail."},
+        {"id": "payment-order", "type": "Dataset", "name": "PAYMENT_CORE.PAYMENT_ORDER", "evidence": "It reads `PAYMENT_CORE.PAYMENT_ORDER` by `payment_id` when retrying timed-out requests"},
+        {"id": "rail-response", "type": "Dataset", "name": "PAYMENT_CORE.RAIL_RESPONSE", "evidence": "writes rail responses to `PAYMENT_CORE.RAIL_RESPONSE`."},
+        {"id": "participant-config", "type": "Application", "name": "RAIL_PARTICIPANT_CONFIG", "evidence": "The gateway adapter depends on the `RAIL_PARTICIPANT_CONFIG` service"},
+        {"id": "treasury-operations", "type": "Team", "name": "Treasury Operations", "evidence": "That service is maintained by Treasury Operations."},
+        {"id": "payments-engineering", "type": "Team", "name": "Payments Engineering", "evidence": "Owner: Payments Engineering"}
+      ],
+      "relationships": [
+        {"source": "clearrail-adapter", "type": "READS_FROM", "target": "payment-order", "evidence": "It reads `PAYMENT_CORE.PAYMENT_ORDER` by `payment_id` when retrying timed-out requests"},
+        {"source": "clearrail-adapter", "type": "WRITES_TO", "target": "rail-response", "evidence": "writes rail responses to `PAYMENT_CORE.RAIL_RESPONSE`."},
+        {"source": "clearrail-adapter", "type": "DEPENDS_ON", "target": "participant-config", "evidence": "The gateway adapter depends on the `RAIL_PARTICIPANT_CONFIG` service"},
+        {"source": "clearrail-adapter", "type": "OWNED_BY", "target": "payments-engineering", "evidence": "Owner: Payments Engineering"}
+      ]
+    },
+    {
+      "document_id": "DOC-AML-006",
+      "entities": [
+        {"id": "sentinel", "type": "Application", "name": "Sentinel", "aliases": ["SNTL"], "evidence": "Sentinel is the bank's anti-money-laundering monitoring application."},
+        {"id": "aml-activity", "type": "Dataset", "name": "AML.PAYMENT_ACTIVITY", "evidence": "Its `AML.PAYMENT_ACTIVITY` dataset is populated by `AML_PAYMENT_FEED`"},
+        {"id": "aml-feed", "type": "Job", "name": "AML_PAYMENT_FEED", "evidence": "populated by `AML_PAYMENT_FEED`, which reads `RISK_CURATED.PAYMENT_FACT`"},
+        {"id": "payment-fact", "type": "Dataset", "name": "RISK_CURATED.PAYMENT_FACT", "evidence": "which reads `RISK_CURATED.PAYMENT_FACT` and writes one activity row per settled payment."},
+        {"id": "financial-crime-data", "type": "Team", "name": "Financial Crime Data", "evidence": "Financial Crime Data owns the feed and Sentinel dataset."}
+      ],
+      "relationships": [
+        {"source": "aml-feed", "type": "READS_FROM", "target": "payment-fact", "evidence": "which reads `RISK_CURATED.PAYMENT_FACT` and writes one activity row per settled payment."},
+        {"source": "aml-feed", "type": "WRITES_TO", "target": "aml-activity", "evidence": "Its `AML.PAYMENT_ACTIVITY` dataset is populated by `AML_PAYMENT_FEED`"},
+        {"source": "aml-activity", "type": "OWNED_BY", "target": "financial-crime-data", "evidence": "Financial Crime Data owns the feed and Sentinel dataset."}
+      ]
+    },
+    {
+      "document_id": "DOC-TREAS-008",
+      "entities": [
+        {"id": "cash-load", "type": "Job", "name": "CASH_SNAPSHOT_LOAD", "evidence": "The `CASH_SNAPSHOT_LOAD` process reads balances from `CORE.CASH_ACCOUNT_BALANCE`"},
+        {"id": "cash-balance", "type": "Dataset", "name": "CORE.CASH_ACCOUNT_BALANCE", "evidence": "reads balances from `CORE.CASH_ACCOUNT_BALANCE`"},
+        {"id": "cash-snapshot", "type": "Dataset", "name": "TREASURY.CASH_BALANCE_SNAPSHOT", "evidence": "writes `TREASURY.CASH_BALANCE_SNAPSHOT` at 06:45 each business day."},
+        {"id": "treasury-operations", "type": "Team", "name": "Treasury Operations", "evidence": "Treasury Operations owns the process and snapshot."}
+      ],
+      "relationships": [
+        {"source": "cash-load", "type": "READS_FROM", "target": "cash-balance", "evidence": "reads balances from `CORE.CASH_ACCOUNT_BALANCE`"},
+        {"source": "cash-load", "type": "WRITES_TO", "target": "cash-snapshot", "evidence": "writes `TREASURY.CASH_BALANCE_SNAPSHOT` at 06:45 each business day."},
+        {"source": "cash-load", "type": "OWNED_BY", "target": "treasury-operations", "evidence": "Treasury Operations owns the process and snapshot."}
+      ]
+    },
+    {
+      "document_id": "DOC-MOB-009",
+      "entities": [
+        {"id": "mobile-banking", "type": "Application", "name": "Mobile Banking", "evidence": "Mobile Banking submits domestic transfers to the Northstar payment API."},
+        {"id": "northstar", "type": "Application", "name": "Northstar", "evidence": "submits domestic transfers to the Northstar payment API."},
+        {"id": "cim-party", "type": "Dataset", "name": "CIM.PARTY", "evidence": "It reads `CIM.PARTY` to display the verified account holder name"},
+        {"id": "party-id", "type": "Field", "name": "party_id", "evidence": "and sends `party_id` as `customer_ref` in the payment request."},
+        {"id": "digital-channels", "type": "Team", "name": "Digital Channels", "evidence": "Digital Channels owns the application."}
+      ],
+      "relationships": [
+        {"source": "mobile-banking", "type": "READS_FROM", "target": "cim-party", "evidence": "It reads `CIM.PARTY` to display the verified account holder name"},
+        {"source": "mobile-banking", "type": "DEPENDS_ON", "target": "northstar", "evidence": "Mobile Banking submits domestic transfers to the Northstar payment API."},
+        {"source": "mobile-banking", "type": "OWNED_BY", "target": "digital-channels", "evidence": "Digital Channels owns the application."}
+      ]
+    },
+    {
+      "document_id": "DOC-BRANCH-010",
+      "entities": [
+        {"id": "branch-portal", "type": "Application", "name": "Branch Portal", "evidence": "The Branch Portal allows staff to submit customer transfers to Northstar."},
+        {"id": "northstar", "type": "Application", "name": "Northstar", "evidence": "submit customer transfers to Northstar."},
+        {"id": "account-party", "type": "Dataset", "name": "CIM.ACCOUNT_PARTY", "evidence": "It reads `CIM.ACCOUNT_PARTY` to verify account relationships"},
+        {"id": "branch-technology", "type": "Team", "name": "Branch Technology", "evidence": "Branch Technology owns the portal."}
+      ],
+      "relationships": [
+        {"source": "branch-portal", "type": "READS_FROM", "target": "account-party", "evidence": "It reads `CIM.ACCOUNT_PARTY` to verify account relationships"},
+        {"source": "branch-portal", "type": "DEPENDS_ON", "target": "northstar", "evidence": "The Branch Portal allows staff to submit customer transfers to Northstar."},
+        {"source": "branch-portal", "type": "OWNED_BY", "target": "branch-technology", "evidence": "Branch Technology owns the portal."}
+      ]
+    },
+    {
+      "document_id": "DOC-GLOSS-011",
+      "entities": [
+        {"id": "party-term", "type": "BusinessTerm", "name": "Party", "evidence": "“Party,” “customer,” and “client” are used inconsistently in team documents."},
+        {"id": "settlement-event-term", "type": "BusinessTerm", "name": "Settlement event", "evidence": "“Settlement event” usually means a rail-finalized payment event."},
+        {"id": "data-governance", "type": "Team", "name": "Data Governance", "evidence": "Data Governance owns this glossary."}
+      ],
+      "relationships": []
+    },
+    {
+      "document_id": "DOC-REG-012",
+      "entities": [
+        {"id": "returns-report", "type": "Report", "name": "Monthly Payment Returns Pack", "evidence": "The Monthly Payment Returns Pack is produced by `PAYMENT_RETURNS_MONTH_END`."},
+        {"id": "returns-job", "type": "Job", "name": "PAYMENT_RETURNS_MONTH_END", "evidence": "produced by `PAYMENT_RETURNS_MONTH_END`. It reads `RISK_CURATED.PAYMENT_FACT`"},
+        {"id": "payment-fact", "type": "Dataset", "name": "RISK_CURATED.PAYMENT_FACT", "evidence": "It reads `RISK_CURATED.PAYMENT_FACT` and writes `REG_REPORTING.MONTHLY_PAYMENT_RETURN`."},
+        {"id": "monthly-return", "type": "Dataset", "name": "REG_REPORTING.MONTHLY_PAYMENT_RETURN", "evidence": "writes `REG_REPORTING.MONTHLY_PAYMENT_RETURN`."},
+        {"id": "regulatory-reporting", "type": "Team", "name": "Regulatory Reporting", "evidence": "Regulatory Reporting owns the return dataset and report."}
+      ],
+      "relationships": [
+        {"source": "returns-job", "type": "READS_FROM", "target": "payment-fact", "evidence": "It reads `RISK_CURATED.PAYMENT_FACT` and writes `REG_REPORTING.MONTHLY_PAYMENT_RETURN`."},
+        {"source": "returns-job", "type": "WRITES_TO", "target": "monthly-return", "evidence": "writes `REG_REPORTING.MONTHLY_PAYMENT_RETURN`."},
+        {"source": "returns-job", "type": "PRODUCES", "target": "returns-report", "evidence": "The Monthly Payment Returns Pack is produced by `PAYMENT_RETURNS_MONTH_END`."},
+        {"source": "returns-report", "type": "OWNED_BY", "target": "regulatory-reporting", "evidence": "Regulatory Reporting owns the return dataset and report."}
+      ]
+    },
+    {
+      "document_id": "DOC-OPS-013",
+      "entities": [
+        {"id": "settlement-export", "type": "Job", "name": "PAYMENT_SETTLEMENT_EXPORT", "evidence": "The `PAYMENT_SETTLEMENT_EXPORT` job reads `PAYMENT_CORE.PAYMENT_ORDER`"},
+        {"id": "payment-order", "type": "Dataset", "name": "PAYMENT_CORE.PAYMENT_ORDER", "evidence": "reads `PAYMENT_CORE.PAYMENT_ORDER` and writes `PAYMENT_STAGE.SETTLEMENT_EVENT` every hour."},
+        {"id": "settlement-event", "type": "Dataset", "name": "PAYMENT_STAGE.SETTLEMENT_EVENT", "evidence": "writes `PAYMENT_STAGE.SETTLEMENT_EVENT` every hour."},
+        {"id": "payments-operations", "type": "Team", "name": "Payments Operations", "evidence": "Payments Operations monitors the schedule and failure queue."},
+        {"id": "payments-engineering", "type": "Team", "name": "Payments Engineering", "evidence": "Payments Engineering owns the job implementation."}
+      ],
+      "relationships": [
+        {"source": "settlement-export", "type": "READS_FROM", "target": "payment-order", "evidence": "reads `PAYMENT_CORE.PAYMENT_ORDER`"},
+        {"source": "settlement-export", "type": "WRITES_TO", "target": "settlement-event", "evidence": "writes `PAYMENT_STAGE.SETTLEMENT_EVENT` every hour."},
+        {"source": "settlement-export", "type": "OWNED_BY", "target": "payments-engineering", "evidence": "Payments Engineering owns the job implementation."}
+      ]
+    },
+    {
+      "document_id": "DOC-FRAUD-014",
+      "entities": [
+        {"id": "velocity-build", "type": "Job", "name": "PAYMENT_VELOCITY_BUILD", "evidence": "The `FRAUD.PAYMENT_VELOCITY_FEATURE` dataset is written by `PAYMENT_VELOCITY_BUILD`."},
+        {"id": "payment-fact", "type": "Dataset", "name": "RISK_CURATED.PAYMENT_FACT", "evidence": "reads `RISK_CURATED.PAYMENT_FACT` and groups settled payment counts and amounts"},
+        {"id": "device-score", "type": "Dataset", "name": "FRAUD.DEVICE_TRUST_SCORE", "evidence": "It also reads `FRAUD.DEVICE_TRUST_SCORE`"},
+        {"id": "velocity-feature", "type": "Dataset", "name": "FRAUD.PAYMENT_VELOCITY_FEATURE", "evidence": "The `FRAUD.PAYMENT_VELOCITY_FEATURE` dataset is written by `PAYMENT_VELOCITY_BUILD`."},
+        {"id": "fraud-analytics", "type": "Team", "name": "Fraud Analytics Engineering", "evidence": "Fraud Analytics Engineering owns the build and feature dataset."}
+      ],
+      "relationships": [
+        {"source": "velocity-build", "type": "READS_FROM", "target": "payment-fact", "evidence": "reads `RISK_CURATED.PAYMENT_FACT` and groups settled payment counts and amounts"},
+        {"source": "velocity-build", "type": "READS_FROM", "target": "device-score", "evidence": "It also reads `FRAUD.DEVICE_TRUST_SCORE`"},
+        {"source": "velocity-build", "type": "WRITES_TO", "target": "velocity-feature", "evidence": "The `FRAUD.PAYMENT_VELOCITY_FEATURE` dataset is written by `PAYMENT_VELOCITY_BUILD`."},
+        {"source": "velocity-feature", "type": "OWNED_BY", "target": "fraud-analytics", "evidence": "Fraud Analytics Engineering owns the build and feature dataset."}
+      ]
+    },
+    {
+      "document_id": "DOC-RISK-015",
+      "entities": [
+        {"id": "risk-enrich", "type": "Job", "name": "RISK_PAYMENT_ENRICH", "evidence": "The curated payment fact is refreshed by RISK_PAYMENT_ENRICH"},
+        {"id": "payment-event", "type": "Dataset", "name": "RISK_LANDING.PAYMENT_EVENT", "evidence": "The job reads RISK_LANDING.PAYMENT_EVENT and LANDING.CUSTOMER_PARTY"},
+        {"id": "customer-party", "type": "Dataset", "name": "LANDING.CUSTOMER_PARTY", "evidence": "The job reads RISK_LANDING.PAYMENT_EVENT and LANDING.CUSTOMER_PARTY"},
+        {"id": "payment-fact", "type": "Dataset", "name": "RISK_CURATED.PAYMENT_FACT", "evidence": "then writes RISK_CURATED.PAYMENT_FACT."},
+        {"id": "enterprise-data-platform", "type": "Team", "name": "Enterprise Data Platform", "evidence": "Enterprise Data Platform owns RISK_PAYMENT_ENRICH and RISK_CURATED.PAYMENT_FACT."}
+      ],
+      "relationships": [
+        {"source": "risk-enrich", "type": "READS_FROM", "target": "payment-event", "evidence": "The job reads RISK_LANDING.PAYMENT_EVENT and LANDING.CUSTOMER_PARTY"},
+        {"source": "risk-enrich", "type": "READS_FROM", "target": "customer-party", "evidence": "The job reads RISK_LANDING.PAYMENT_EVENT and LANDING.CUSTOMER_PARTY"},
+        {"source": "risk-enrich", "type": "WRITES_TO", "target": "payment-fact", "evidence": "then writes RISK_CURATED.PAYMENT_FACT."},
+        {"source": "risk-enrich", "type": "OWNED_BY", "target": "enterprise-data-platform", "evidence": "Enterprise Data Platform owns RISK_PAYMENT_ENRICH and RISK_CURATED.PAYMENT_FACT."}
+      ]
+    },
+    {
+      "document_id": "DOC-OPS-016",
+      "entities": [
+        {"id": "reconciliation", "type": "Job", "name": "DAILY_PAYMENT_RECON", "evidence": "The DAILY_PAYMENT_RECON process compares PAYMENT_STAGE.SETTLEMENT_EVENT with GL.PAYMENT_POSTING"},
+        {"id": "settlement-event", "type": "Dataset", "name": "PAYMENT_STAGE.SETTLEMENT_EVENT", "evidence": "compares PAYMENT_STAGE.SETTLEMENT_EVENT with GL.PAYMENT_POSTING"},
+        {"id": "payment-posting", "type": "Dataset", "name": "GL.PAYMENT_POSTING", "evidence": "compares PAYMENT_STAGE.SETTLEMENT_EVENT with GL.PAYMENT_POSTING"},
+        {"id": "recon-break", "type": "Dataset", "name": "OPS.PAYMENT_RECON_BREAK", "evidence": "It reads both datasets and writes exceptions to OPS.PAYMENT_RECON_BREAK."},
+        {"id": "payments-operations", "type": "Team", "name": "Payments Operations", "evidence": "Payments Operations owns the reconciliation process and exception queue."}
+      ],
+      "relationships": [
+        {"source": "reconciliation", "type": "READS_FROM", "target": "settlement-event", "evidence": "The DAILY_PAYMENT_RECON process compares PAYMENT_STAGE.SETTLEMENT_EVENT with GL.PAYMENT_POSTING"},
+        {"source": "reconciliation", "type": "READS_FROM", "target": "payment-posting", "evidence": "The DAILY_PAYMENT_RECON process compares PAYMENT_STAGE.SETTLEMENT_EVENT with GL.PAYMENT_POSTING"},
+        {"source": "reconciliation", "type": "WRITES_TO", "target": "recon-break", "evidence": "It reads both datasets and writes exceptions to OPS.PAYMENT_RECON_BREAK."},
+        {"source": "reconciliation", "type": "OWNED_BY", "target": "payments-operations", "evidence": "Payments Operations owns the reconciliation process and exception queue."}
+      ]
+    }
+  ]
+}
